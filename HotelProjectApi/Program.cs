@@ -1,3 +1,7 @@
+using HotelProjectApi.Filters;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Versioning;
+
 namespace HotelProjectApi
 {
     public class Program
@@ -13,6 +17,32 @@ namespace HotelProjectApi
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
+            builder.Services.AddMvc(options =>
+            {
+                options.Filters.Add<JsonExceptionFilter>();
+                options.Filters.Add<RequireHttpsOrCloseAttribute>();
+            });
+
+            builder.Services.AddRouting(options =>
+            {
+                options.LowercaseUrls = true;
+            });
+
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAny",
+                    policy => policy.AllowAnyOrigin());
+            });
+
+            builder.Services.AddApiVersioning(options =>
+            {
+                options.DefaultApiVersion = new ApiVersion(1, 0);
+                options.ApiVersionReader = new MediaTypeApiVersionReader();
+                options.AssumeDefaultVersionWhenUnspecified = true;
+                options.ReportApiVersions = true;
+                options.ApiVersionSelector = new CurrentImplementationApiVersionSelector(options);
+            });
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -22,7 +52,7 @@ namespace HotelProjectApi
                 app.UseSwaggerUI();
             }
 
-            app.UseHttpsRedirection();
+            app.UseCors("AllowAny");
 
             app.UseAuthorization();
 
