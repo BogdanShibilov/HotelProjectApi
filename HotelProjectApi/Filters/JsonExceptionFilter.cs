@@ -7,9 +7,9 @@ namespace HotelProjectApi.Filters
 {
     public class JsonExceptionFilter : IExceptionFilter
     {
-        private readonly IHostingEnvironment _environment;
+        private readonly IWebHostEnvironment _environment;
 
-        public JsonExceptionFilter(IHostingEnvironment environment)
+        public JsonExceptionFilter(IWebHostEnvironment environment)
         {
             this._environment = environment;
         }
