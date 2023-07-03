@@ -2,9 +2,10 @@
 
 namespace HotelProjectApi.Models
 {
-    public abstract class Resource
+    public abstract class Resource : Link
     {
         [JsonPropertyOrder(-2)]
-        public string Href { get; set; }
+        [JsonIgnore]
+        public Link Self { get; set; }
     }
 }

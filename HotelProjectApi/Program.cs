@@ -34,6 +34,7 @@ namespace HotelProjectApi
             {
                 options.Filters.Add<JsonExceptionFilter>();
                 options.Filters.Add<RequireHttpsOrCloseAttribute>();
+                options.Filters.Add<LinkRewritingFilter>();
             });
 
             builder.Services.AddRouting(options =>
