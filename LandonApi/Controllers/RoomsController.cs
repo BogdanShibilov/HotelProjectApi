@@ -2,6 +2,7 @@
 using LandonApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,13 +16,16 @@ namespace LandonApi.Controllers
     {
         private readonly IRoomService _roomService;
         private readonly IOpeningService _openingService;
+        private readonly PagingOptions _defaultPaginOptions;
 
         public RoomsController(
             IRoomService roomService,
-            IOpeningService openingService)
+            IOpeningService openingService,
+            IOptions<PagingOptions> defaultPaginOptionsWrapper)
         {
             _roomService = roomService;
             _openingService = openingService;
+            _defaultPaginOptions = defaultPaginOptionsWrapper.Value;
         }
 
         // GET /rooms
@@ -43,15 +47,20 @@ namespace LandonApi.Controllers
         // GET /rooms/openings
         [HttpGet("openings", Name = nameof(GetAllRoomOpenings))]
         [ProducesResponseType(200)]
-        public async Task<ActionResult<Collection<Opening>>> GetAllRoomOpenings()
+        [ProducesResponseType(400)]
+        public async Task<ActionResult<Collection<Opening>>> GetAllRoomOpenings(
+            [FromQuery] PagingOptions pagingOptions = null)
         {
-            var openings = await _openingService.GetOpeningsAsync();
+            pagingOptions.Offset = pagingOptions.Offset ?? _defaultPaginOptions.Offset;
+            pagingOptions.Limit = pagingOptions.Limit ?? _defaultPaginOptions.Limit;
 
-            var collection = new Collection<Opening>()
-            {
-                Self = Link.ToCollection(nameof(GetAllRoomOpenings)),
-                Value = openings.ToArray()
-            };
+            var openings = await _openingService.GetOpeningsAsync(pagingOptions);
+
+            var collection = PagedCollection<Opening>.Create(
+                Link.ToCollection(nameof(GetAllRoomOpenings)),
+                openings.Items.ToArray(),
+                openings.TotalSize,
+                pagingOptions);
 
             return collection;
         }
