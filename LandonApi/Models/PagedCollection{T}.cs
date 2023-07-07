@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Routing;
 using Newtonsoft.Json;
 using System;
-using System.Drawing;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace LandonApi.Models
 {
@@ -9,7 +11,12 @@ namespace LandonApi.Models
     {
         public static PagedCollection<T> Create(
             Link self, T[] items, int size, PagingOptions pagingOptions)
-            => new PagedCollection<T>
+            => Create<PagedCollection<T>>(self, items, size, pagingOptions);
+
+        public static TResponse Create<TResponse>(
+            Link self, T[] items, int size, PagingOptions pagingOptions)
+            where TResponse : PagedCollection<T>, new()
+            => new TResponse
             {
                 Self = self,
                 Value = items,
@@ -21,8 +28,6 @@ namespace LandonApi.Models
                 Previous = GetPreviousLink(self, size, pagingOptions),
                 Last = GetLastLink(self, size, pagingOptions)
             };
-
-        
 
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public int? Offset { get; set; }
@@ -44,7 +49,8 @@ namespace LandonApi.Models
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public Link Last { get; set; }
 
-        private static Link GetNextLink(Link self, int size, PagingOptions pagingOptions)
+        private static Link GetNextLink(
+            Link self, int size, PagingOptions pagingOptions)
         {
             if (pagingOptions?.Limit == null) return null;
             if (pagingOptions?.Offset == null) return null;
@@ -122,5 +128,6 @@ namespace LandonApi.Models
 
             return newLink;
         }
+
     }
 }

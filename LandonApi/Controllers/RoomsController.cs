@@ -16,43 +16,49 @@ namespace LandonApi.Controllers
     {
         private readonly IRoomService _roomService;
         private readonly IOpeningService _openingService;
-        private readonly PagingOptions _defaultPaginOptions;
+        private readonly PagingOptions _defaultPagingOptions;
 
         public RoomsController(
             IRoomService roomService,
             IOpeningService openingService,
-            IOptions<PagingOptions> defaultPaginOptionsWrapper)
+            IOptions<PagingOptions> defaultPagingOptionsWrapper)
         {
             _roomService = roomService;
             _openingService = openingService;
-            _defaultPaginOptions = defaultPaginOptionsWrapper.Value;
+            _defaultPagingOptions = defaultPagingOptionsWrapper.Value;
         }
 
         // GET /rooms
         [HttpGet(Name = nameof(GetAllRooms))]
         [ProducesResponseType(200)]
-        public async Task<ActionResult<Collection<Room>>> GetAllRooms()
+        public async Task<ActionResult<Collection<Room>>> GetAllRooms(
+            [FromQuery] PagingOptions pagingOptions,
+            [FromQuery] SortOptions<Room, RoomEntity> sortOptions)
         {
-            var rooms = await _roomService.GetRoomsAsync();
+            pagingOptions.Offset = pagingOptions.Offset ?? _defaultPagingOptions.Offset;
+            pagingOptions.Limit = pagingOptions.Limit ?? _defaultPagingOptions.Limit;
 
-            var collection = new Collection<Room>
-            {
-                Self = Link.ToCollection(nameof(GetAllRooms)),
-                Value = rooms.ToArray()
-            };
+            var rooms = await _roomService.GetRoomsAsync(pagingOptions, sortOptions);
+
+            var collection = PagedCollection<Room>.Create<RoomsResponse>(
+                Link.ToCollection(nameof(GetAllRooms)),
+                rooms.Items.ToArray(),
+                rooms.TotalSize,
+                pagingOptions);
+            collection.Openings = Link.ToCollection(nameof(GetAllRoomOpenings));
 
             return collection;
         }
 
         // GET /rooms/openings
         [HttpGet("openings", Name = nameof(GetAllRoomOpenings))]
-        [ProducesResponseType(200)]
         [ProducesResponseType(400)]
+        [ProducesResponseType(200)]
         public async Task<ActionResult<Collection<Opening>>> GetAllRoomOpenings(
             [FromQuery] PagingOptions pagingOptions = null)
         {
-            pagingOptions.Offset = pagingOptions.Offset ?? _defaultPaginOptions.Offset;
-            pagingOptions.Limit = pagingOptions.Limit ?? _defaultPaginOptions.Limit;
+            pagingOptions.Offset = pagingOptions.Offset ?? _defaultPagingOptions.Offset;
+            pagingOptions.Limit = pagingOptions.Limit ?? _defaultPagingOptions.Limit;
 
             var openings = await _openingService.GetOpeningsAsync(pagingOptions);
 

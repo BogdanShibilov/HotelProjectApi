@@ -14,7 +14,7 @@ namespace LandonApi.Models
 
         public ApiError(ModelStateDictionary modelState)
         {
-            Message = "Invalid parameters";
+            Message = "Invalid parameters.";
             Detail = modelState
                 .FirstOrDefault(x => x.Value.Errors.Any()).Value.Errors
                 .FirstOrDefault().ErrorMessage;
