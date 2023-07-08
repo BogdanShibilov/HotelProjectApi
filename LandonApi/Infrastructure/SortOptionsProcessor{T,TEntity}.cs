@@ -1,8 +1,8 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace LandonApi.Infrastructure
 {
@@ -31,8 +31,7 @@ namespace LandonApi.Infrastructure
                     continue;
                 }
 
-                var descending = tokens.Length > 1 && tokens[1]
-                    .Equals("desc", StringComparison.OrdinalIgnoreCase);
+                var descending = tokens.Length > 1 && tokens[1].Equals("desc", StringComparison.OrdinalIgnoreCase);
 
                 yield return new SortTerm
                 {
@@ -58,8 +57,9 @@ namespace LandonApi.Infrastructure
                 yield return new SortTerm
                 {
                     Name = declaredTerm.Name,
+                    EntityName = declaredTerm.EntityName,
                     Descending = term.Descending,
-                    Default = declaredTerm.Default,
+                    Default = declaredTerm.Default
                 };
             }
         }
@@ -70,9 +70,7 @@ namespace LandonApi.Infrastructure
 
             if (!terms.Any())
             {
-                terms = GetTermsFromModel()
-                    .Where(t => t.Default)
-                    .ToArray();
+                terms = GetTermsFromModel().Where(t => t.Default).ToArray();
             }
 
             if (!terms.Any()) return query;
@@ -83,17 +81,22 @@ namespace LandonApi.Infrastructure
             foreach (var term in terms)
             {
                 var propertyInfo = ExpressionHelper
-                    .GetPropertyInfo<TEntity>(term.Name);
+                    .GetPropertyInfo<TEntity>(term.EntityName ?? term.Name);
                 var obj = ExpressionHelper.Parameter<TEntity>();
 
+                // Build the LINQ expression backwards:
+                // query = query.OrderBy(x => x.Property);
+
+                // x => x.Property
                 var key = ExpressionHelper
                     .GetPropertyExpression(obj, propertyInfo);
                 var keySelector = ExpressionHelper
                     .GetLambda(typeof(TEntity), propertyInfo.PropertyType, obj, key);
 
+                // query.OrderBy/ThenBy[Descending](x => x.Property)
                 modifiedQuery = ExpressionHelper
                     .CallOrderByOrThenBy(
-                    modifiedQuery, useThenBy, term.Descending, propertyInfo.PropertyType, keySelector);
+                        modifiedQuery, useThenBy, term.Descending, propertyInfo.PropertyType, keySelector);
 
                 useThenBy = true;
             }
@@ -108,6 +111,7 @@ namespace LandonApi.Infrastructure
             .Select(p => new SortTerm
             {
                 Name = p.Name,
+                EntityName = p.GetCustomAttribute<SortableAttribute>().EntityProperty,
                 Default = p.GetCustomAttribute<SortableAttribute>().Default
             });
     }

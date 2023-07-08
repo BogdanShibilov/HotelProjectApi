@@ -5,14 +5,18 @@ using System.Threading.Tasks;
 
 namespace LandonApi.Infrastructure
 {
-    public class SortTerm
+    public class SearchTerm
     {
         public string Name { get; set; }
 
         public string EntityName { get; set; }
 
-        public bool Descending { get; set; }
+        public string Operator { get; set; }
 
-        public bool Default { get; set; }
+        public string Value { get; set; }
+
+        public bool ValidSyntax { get; set; }
+
+        public ISearchExpressionProvider ExpressionProvider { get; set; }
     }
 }

@@ -6,10 +6,11 @@ using System.Threading.Tasks;
 namespace LandonApi.Infrastructure
 {
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
-    public class SortableAttribute : Attribute
+    public class SearchableDateTimeAttribute : SearchableAttribute
     {
-        public string EntityProperty { get; set; }
-
-        public bool Default { get; set; }
+        public SearchableDateTimeAttribute()
+        {
+            ExpressionProvider = new DateTimeSearchExpressionProvider();
+        }
     }
 }
