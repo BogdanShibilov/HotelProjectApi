@@ -19,6 +19,9 @@ using LandonApi.Services;
 using AutoMapper;
 using LandonApi.Infrastructure;
 using Newtonsoft.Json;
+using Microsoft.AspNetCore.Identity;
+using AspNet.Security.OpenIdConnect.Primitives;
+using OpenIddict.Validation;
 
 namespace LandonApi
 {
@@ -43,23 +46,61 @@ namespace LandonApi
             services.AddScoped<IOpeningService, DefaultOpeningService>();
             services.AddScoped<IBookingService, DefaultBookingService>();
             services.AddScoped<IDateLogicService, DefaultDateLogicService>();
+            services.AddScoped<IUserService, DefaultUserService>();
 
             // Use in-memory database for quick dev and testing
             // TODO: Swap out for a real database in production
             services.AddDbContext<HotelApiDbContext>(
-                options => options.UseInMemoryDatabase("landondb"));
+                options =>
+                {
+                    options.UseInMemoryDatabase("landondb");
+                    options.UseOpenIddict<Guid>();
+                });
+
+            // Add OpenIddict services
+            services.AddOpenIddict()
+                .AddCore(options =>
+                {
+                    options.UseEntityFrameworkCore()
+                        .UseDbContext<HotelApiDbContext>()
+                        .ReplaceDefaultEntities<Guid>();
+                })
+                .AddServer(options =>
+                {
+                    options.UseMvc();
+
+                    options.EnableTokenEndpoint("/token");
+
+                    options.AllowPasswordFlow();
+                    options.AcceptAnonymousClients();
+                })
+                .AddValidation();
+
+            // ASP.NET Core Identity should use the same claim names as OpenIddict
+            services.Configure<IdentityOptions>(options =>
+            {
+                options.ClaimsIdentity.UserNameClaimType = OpenIdConnectConstants.Claims.Name;
+                options.ClaimsIdentity.UserIdClaimType = OpenIdConnectConstants.Claims.Subject;
+                options.ClaimsIdentity.RoleClaimType = OpenIdConnectConstants.Claims.Role;
+            });
+
+            services.AddAuthentication(options =>
+            {
+                options.DefaultScheme = OpenIddictValidationDefaults.AuthenticationScheme;
+            });
+
+            // Add ASP.NET Core Identity
+            AddIdentityCoreServices(services);
 
             services
                 .AddMvc(options =>
                 {
-                    options.CacheProfiles.Add("Static", new CacheProfile
-                    {
-                        Duration = 86400
-                    });
+                    options.CacheProfiles.Add("Static", new CacheProfile { Duration = 86400 });
+                    options.CacheProfiles.Add("Collection", new CacheProfile { Duration = 60 });
+                    options.CacheProfiles.Add("Resource", new CacheProfile { Duration = 180 });
 
                     options.Filters.Add<JsonExceptionFilter>();
-                    options.Filters
-                        .Add<RequireHttpsOrCloseAttribute>();
+                    options.Filters.Add<RequireHttpsOrCloseAttribute>();
                     options.Filters.Add<LinkRewritingFilter>();
                 })
                 .SetCompatibilityVersion(CompatibilityVersion.Version_2_1)
@@ -99,6 +140,15 @@ namespace LandonApi
             });
 
             services.AddResponseCaching();
+
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy("ViewAllUsersPolicy",
+                    p => p.RequireAuthenticatedUser().RequireRole("Admin"));
+
+                options.AddPolicy("ViewAllBookingsPolicy",
+                    p => p.RequireAuthenticatedUser().RequireRole("Admin"));
+            });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -120,9 +170,25 @@ namespace LandonApi
                 app.UseHsts();
             }
 
+            app.UseAuthentication();
+
             app.UseResponseCaching();
 
             app.UseMvc();
+        }
+
+        private static void AddIdentityCoreServices(IServiceCollection services)
+        {
+            var builder = services.AddIdentityCore<UserEntity>();
+            builder = new IdentityBuilder(
+                builder.UserType,
+                typeof(UserRoleEntity),
+                builder.Services);
+
+            builder.AddRoles<UserRoleEntity>()
+                .AddEntityFrameworkStores<HotelApiDbContext>()
+                .AddDefaultTokenProviders()
+                .AddSignInManager<SignInManager<UserEntity>>();
         }
     }
 }
